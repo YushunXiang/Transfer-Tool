@@ -1,8 +1,8 @@
 #!/bin/bash
-
+YOUR_DIR="tmp"
 # Configuration
-SOURCE_DIR="/inspire/hdd/project/embodied-intelligence/xiangyushun-p-xiangyushun/yushun"
-OBS_DIR="obs://sai.liyl/xiangyushun"
+SOURCE_DIR="/inspire/hdd/project/embodied-intelligence/xiangyushun-p-xiangyushun/$YOUR_DIR"
+OBS_DIR="obs://sai.liyl/$YOUR_DIR"
 LOG_FILE="/var/log/embodied-upload.log"
 ARCHIVE_PREFIX="data_part"
 PART_SIZE="10g"  # 7z part size
@@ -67,17 +67,26 @@ process_directory() {
     local safe_name=$(echo "$relative_path" | tr '/' '_')
     local timestamp=$(date +%Y%m%d_%H%M%S)
     local archive_base="${ARCHIVE_PREFIX}_${safe_name}_${timestamp}"
-
+    
     log "Processing directory: $dir"
-
+    
+    # Create 7z archive with splitting
     cd "$TEMP_DIR"
-    # 用 tar 保留 symlink 本身，再通过管道交给 7zz 做分卷
-    tar -cf - -C "$(dirname "$dir")" "$(basename "$dir")" | \
-      7zz a -si -mmt=on -v${PART_SIZE} "${archive_base}.7z" -mx=5
-
-    if [ $? -eq 0 ]; then
+    if 7zz a -v${PART_SIZE} -xr!@symlinks "${archive_base}.7z" "$dir" -mx=0; then
         log "Archive created successfully: ${archive_base}.7z"
-        # 上传各分卷...
+        
+        # Upload all parts
+        for part in ${archive_base}.7z*; do
+            if [ -f "$part" ]; then
+                upload_with_retry "$TEMP_DIR/$part" "$OBS_DIR/"
+                
+                # Remove local part after successful upload
+                if [ $? -eq 0 ]; then
+                    rm -f "$TEMP_DIR/$part"
+                    log "Removed local file: $part"
+                fi
+            fi
+        done
     else
         log "ERROR: Failed to create archive for $dir"
     fi

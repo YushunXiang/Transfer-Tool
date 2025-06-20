@@ -1,8 +1,8 @@
 #!/bin/bash
-
+YOUR_DIR="tmp"
 # Configuration
-OBS_DIR="obs://sai.liyl/xiangyushun"
-TARGET_DIR="/inspire/hdd/project/robot-reasoning/xiangyushun-p-xiangyushun/yushun"
+OBS_DIR="obs://sai.liyl/$YOUR_DIR"
+TARGET_DIR="/inspire/hdd/project/robot-reasoning/xiangyushun-p-xiangyushun/$YOUR_DIR"
 LOG_FILE="/var/log/robot-download.log"
 TEMP_DIR="/tmp/robot_downloads"
 ARCHIVE_PREFIX="data_part"
@@ -33,7 +33,7 @@ download_file() {
     while [ $retry_count -lt $max_retries ]; do
         log "Downloading $file (attempt $((retry_count + 1)))"
         
-        if rclone copy "$OBS_DIR/$file" "$TEMP_DIR/" --progress; then
+        if obsutil cp "$OBS_DIR/$file" "$TEMP_DIR/"; then
             log "Successfully downloaded $file"
             return 0
         else
@@ -61,27 +61,26 @@ delete_from_obs() {
     fi
 }
 
-# Function to extract multipart archive (for tar+7z 打包方案)
+# Function to extract multipart archive
 extract_archive() {
     local base_name="$1"
     local first_part="${base_name}.7z.001"
-
+    
     cd "$TEMP_DIR"
-
-    log "Extracting archive (tar+7z): $base_name"
-    # 1) 用 7zz x -so 把所有分卷流式解压到 stdout（它会自动读到 .002/.003…）
-    # 2) 交给 tar 恢复原始目录结构和符号链接
-    if 7zz x -so "$first_part" | tar -x -C "$TARGET_DIR"; then
-        log "✔ Successfully extracted $base_name"
-        rm -f ${base_name}.7z.*    # 清理本地分卷
-        log "Cleaned up local parts for $base_name"
+    
+    log "Extracting archive: $base_name"
+    if 7zz x "$first_part" -o"$TARGET_DIR" -y; then
+        log "Successfully extracted $base_name"
+        
+        # Clean up local archive parts
+        rm -f ${base_name}.7z.*
+        log "Cleaned up local archive parts"
         return 0
     else
         log "ERROR: Failed to extract $base_name"
         return 1
     fi
 }
-
 
 # Function to process complete archive sets
 process_archives() {
