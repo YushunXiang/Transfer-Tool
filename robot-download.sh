@@ -69,7 +69,9 @@ extract_archive() {
     cd "$TEMP_DIR"
     
     log "Extracting archive: $base_name"
-    if 7zz x "$first_part" -o"$TARGET_DIR" -y; then
+    # Use -snl to handle symlinks the same way they were stored during creation
+    # This prevents "dangerous link path" errors for absolute symlinks
+    if 7zz x "$first_part" -o"$TARGET_DIR" -y -snl; then
         log "Successfully extracted $base_name"
         
         # Clean up local archive parts

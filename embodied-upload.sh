@@ -72,7 +72,7 @@ process_directory() {
     
     # Create 7z archive with splitting
     cd "$TEMP_DIR"
-    if 7zz a -v${PART_SIZE} -xr!@symlinks "${archive_base}.7z" "$dir" -mx=0; then
+    if 7zz a -v${PART_SIZE} -snl "${archive_base}.7z" "$dir" -mx=0; then
         log "Archive created successfully: ${archive_base}.7z"
         
         # Upload all parts
